@@ -1,0 +1,856 @@
+\documentclass{article}
+\usepackage{tikz}
+\usepackage{ifthen}
+\usepackage{adjustbox}
+\usetikzlibrary{calc,decorations.pathmorphing,shapes}
+\pgfdeclareradialshading{someshade}{\pgfpointorigin}{color(0mm)=(pgftransparent!40);color(4mm)=(pgftransparent!50);color(8mm)=(pgftransparent!70);color(2cm)=(pgftransparent!100)}
+\pgfdeclareradialshading{somenodeshade}{\pgfpointorigin}{color(0mm)=(pgftransparent!0);color(2mm)=(pgftransparent!0);color(5mm)=(pgftransparent!99);color(5.1mm)=(pgftransparent!100)}
+\pgfdeclareradialshading{flameshade}{\pgfpointorigin}{color(0mm)=(pgftransparent!20);color(3mm)=(pgftransparent!50);color(8mm)=(pgftransparent!80);color(2cm)=(pgftransparent!100)}
+\pgfdeclareradialshading{invertshade}{\pgfpointorigin}{color(0mm)=(pgftransparent!100);color(5mm)=(pgftransparent!95);color(16mm)=(pgftransparent!40);color(3cm)=(pgftransparent!0)}
+\pgfdeclarehorizontalshading{romanshade}{4cm}{color(0cm)=(pgftransparent);color(1cm)=(pgftransparent!50);color(2cm)=(pgftransparent)}
+\pgfdeclareverticalshading{trailshade}{10cm}{color(0cm)=(pgftransparent);color(3cm)=(pgftransparent!0)}
+\pgfdeclarefading{fadetrail}{\pgfuseshading{trailshade}}
+\pgfdeclarefading{fadeit}{\pgfuseshading{someshade}}
+\pgfdeclarefading{fadein}{\pgfuseshading{invertshade}}
+\pgfdeclarefading{faderoman}{\pgfuseshading{romanshade}}
+\pgfdeclarefading{fadeflame}{\pgfuseshading{flameshade}}
+
+%bursts (rocket/mortar)
+\def\burst{
+	\pgfgettransform{\mycurrenttransform}
+
+	\pgfmathdeclarerandomlist{colour}{{\basecolour}{\basecolour!90!black}{\basecolour!80!black}{\basecolour!90!white}{\basecolour!70!\secondcolour}{\basecolour!80!\secondcolour}}
+	\node [coordinate] at(0,0) (burstpoint){};
+	\ifthenelse{\equal{\smoke}{true}}{
+   		\pgfsetfading{fadeit}{\pgfsettransform{\mycurrenttransform}};\fill[\smokecolour,opacity=.8] (current bounding box.north west) rectangle (current bounding box.south east);
+   	}{}
+	\ifthenelse{\equal{\centreblob}{true}}{
+		\pgfsetfading{fadeit}{\pgfsettransform{\mycurrenttransform}\pgftransformscale{.3}}
+   		\node [circle,minimum width=\centreblobwidth, minimum height=\centreblobwidth, inner sep=0mm,fill=\centreblobcolour,opacity=.5,outer sep=0] at (0,0){};
+	}{}
+	\foreach \x in {\anglemin,\angletwo,...,\anglemax}{%
+		\pgfmathrandomitem{\c}{colour}%
+		\pgfsetfading{fadeit}{\pgftransformshift{\pgfpoint{2cm}{1cm}}}
+		\def\r{3*rand+\x}%
+		\def\d{1mm*rand+\burstwidth}%
+		\def\inangle{90+rand*30}
+		\draw [draw=\c] (burstpoint) to  [out=\r,in=\inangle] (\r:\d) {} node [coordinate, inner sep=0, outer sep =0] (end\x){};		
+		\pgfsetfading{fadeit}{\pgfsettransform{\mycurrenttransform}\pgftransformshift{\pgfpointanchor{end\x}{center}}\pgftransformscale{0.3}}
+		\begin{scope}[transparency group]
+			\foreach \y in {\bursttwoanglemin,\bursttwoangletwo,...,\bursttwoanglemax}{
+				\ifthenelse{\equal{\bursttwo}{true}}{
+					\ifthenelse{\equal{\smoke}{true}}{
+						\pgfsetfading{fadeit}{\pgfsettransform{\mycurrenttransform}\pgftransformshift{\pgfpointanchor{end\x}{center}}\pgftransformscale{0.3}};\fill[\smokecolour,opacity=.4] ($(end\x)+(-\burstwidth,-\burstwidth)$) rectangle ($(end\x)+(\burstwidth,\burstwidth)$);%shading
+					}{}
+					\draw [draw=\c,projectiletwo,line width=0.5pt]  ($(end\x.center)$) -- ($(end\x.center)+(\y :\bursttwowidthrandom*rand+\bursttwowidth)$);
+					
+				}{}
+			}
+		\end{scope}
+		
+		\ifthenelse{\equal{\endblob}{true}}{
+			\pgfsetfading{fadeit}{\pgfsettransform{\mycurrenttransform}\pgftransformshift{\pgfpointanchor{end\x}{center}}\pgftransformscale{\endblobwidth/2cm}}
+			\node [circle,minimum width=\endblobwidth, minimum height=\endblobwidth, inner sep=0mm,fill=\endblobcolour,opacity=1,outer sep=0] at (end\x){};
+		}{}
+	}
+}
+%roman candle style
+\def\candle{
+	\pgfmathdeclarerandomlist{colour}{{\basecolour}{\basecolour!90!white}{\basecolour!80!white}{\basecolour!80!green}{\basecolour!80!red}{\basecolour!80!blue}}
+	\pgfsetfading{fadein}{\pgftransformshift{\pgfpoint{0cm}{-3cm}}}
+	\node [coordinate] at(0,0)(basepoint){};
+	\node [coordinate]at(0,0.5*\candleheight) (smokepoint){};
+    \foreach \x in {\candleanglemin,\candleangletwo,...,\candleanglemax}{%
+		\pgfmathrandomitem{\c}{colour}
+		\def\r{rand*\candleheightrandom+\candleheight}
+		\def\xx{5*rnd+\x}
+		\node[coordinate] at ($(0,0)+(\xx:\r)$) (endpoint){};
+		\draw[draw=\c,line width=0.5] (0,0) to [out=\x,in=90] (endpoint);%
+    }
+    \ifthenelse{\equal{\smoke}{true}}{
+		\pgfsetfading{fadeit}{\pgftransformrotate{\candleanglemax-90}\pgftransformxscale{0.3}\pgftransformshift{\pgfpointanchor{smokepoint}{center}}};
+		\fill[\smokecolour] [draw=none, line width=0.5,smooth cycle] (0,0) to (\candleanglemax+10:\candleheight*2) to ($(\candleanglemin/2+\candleanglemax/2,\candleheight*2)$) to (\candleanglemin-7:\candleheight*2) to (0,0);
+	}{}
+}
+%cloud
+\def\cloud{
+	\pgfgettransform{\mycurrenttransform}
+	\node[coordinate] at(0,0)(cloudpoint){};
+	\pgfsetfading{fadeit}{\pgfsettransform{\mycurrenttransform}\pgftransformscale{0.5}\pgftransformyscale{0.3}}
+    \node[cloud, cloud puffs=10, cloud puff arc=60,cloud ignores aspect, minimum width=\cloudwidth, minimum height=\cloudheight, align=center, draw=none, fill=\cloudcolour, fill opacity=.4] (cloud) at (cloudpoint) {};
+}
+
+%flame
+\def\flame{
+	\pgfgettransform{\mycurrenttransform}
+	\pgfsetfading{fadeflame}{\pgfsettransform{\mycurrenttransform}\pgftransformshift{\pgfpoint{0}{-4.5}}\pgftransformxscale{0.05}\pgftransformyscale{0.08}}%
+	\path(0,0) pic{flame};
+}
+%based on the raindrop at http://tex.stackexchange.com/a/195642/28808
+	\tikzset{%
+  flame/.pic={
+    code={\tikzset{scale=1/10}
+ \clip [preaction={top color=red!80, bottom color=red!40!yellow}]
+ (0,0)  .. controls ++(0,-1) and ++(0,1) .. (1,-2)
+ arc (360:180:1)
+ .. controls ++(0,1) and ++(0,-1) .. (0,0) -- cycle ;
+ \foreach \j in {1,3,...,20}
+ \shade [top color=red, shift=(270:0), xscale=1-\j/40,yscale=1-\j/80, red!50!yellow, opacity=1/8]
+ [rotate=-\j] (0,0)  .. controls ++(0,-1) and ++(0,1) .. (1,-2)
+ arc (360:180:1)
+ .. controls ++(0,1) and ++(0,-1) .. (0,0) -- cycle;
+  }}}
+%rocket trail
+\pgfdeclaredecoration{irregular fractal line}{init}
+{
+  \state{init}[width=\pgfdecoratedinputsegmentremainingdistance]
+  {
+    \pgfpathcircle{\pgfpoint{random*\pgfdecoratedinputsegmentremainingdistance}{(random*\pgfdecorationsegmentamplitude-0.02)*\pgfdecoratedinputsegmentremainingdistance}}{.5pt}\pgfusepath{fill};
+  }
+}
+\tikzset{
+   trail/.style={decoration={irregular fractal line, amplitude=0.2},
+           decorate}
+}
+  
+  
+\begin{document}
+\pgfmathsetseed{1}
+%\newsavebox{\pic}
+%\savebox{\pic}{
+\begin{tikzpicture}[projectile/.style={decorate,decoration={random steps,segment length=2pt,amplitude=0.5pt}}, projectiletwo/.style={decorate,decoration={random steps,segment length=2pt,amplitude=0.2pt}}]
+\fill[black] (-6,-5) rectangle (9,8);
+\clip (-6,-5) rectangle (9,8);
+
+
+%rockets with trails of sparks
+
+\def\trailcolour{white}
+\def\launchangle{80}
+\begin{scope}
+	\pgfsetfading{fadetrail}{\pgftransformscale{5}}
+	\pgfsetfillcolor{\trailcolour}
+	\draw [draw=\trailcolour] {decorate[trail]{decorate[decoration={random steps, segment length=2pt, amplitude=1pt}]{
+        (-3cm,-2.6cm) to [out=\launchangle+rand*5, in=300+rand*15] (-3cm,5cm)
+     }}};
+    \draw [draw=\trailcolour] {decorate[trail]{decorate[decoration={random steps, segment length=2pt, amplitude=1pt}]{
+        (5cm,-2.6cm) to [out=\launchangle+rand*5, in=300+rand*15] (5cm,5cm)
+     }}};
+     \draw [draw=\trailcolour] {decorate[trail]{decorate[decoration={random steps, segment length=2pt, amplitude=1pt}]{
+        (1cm,-2.6cm) to [out=\launchangle+rand*5, in=300+rand*15] (1cm,6cm)
+     }}};
+\end{scope}
+\def\basecolour{red}
+\def\secondcolour{red!50!yellow}
+\def\smoke{true}
+\def\bursttwo{true}
+\def\bursttwoanglemin{0}
+\def\bursttwoangletwo{60}
+\def\bursttwoanglemax{359}
+\def\bursttwowidth{2mm}
+\def\bursttwowidthrandom{1.5mm}
+\def\smokecolour{gray}
+\def\burstwidth{1.7cm}
+\def\anglemin{0}
+\def\angletwo{10}
+\def\anglemax{359}
+\def\endblob{false}
+\def\endblobwidth{2mm}
+\def\endblobcolour{red}
+\def\centreblob{false}
+\def\centreblobwidth{0.75cm}
+\def\centreblobcolour{yellow}
+\begin{scope}[xshift=1cm, yshift=6cm]
+	\burst
+	\def\anglemin{5}
+	\def\angletwo{15}
+	\def\anglemax{359}
+	\def\smoke{false}
+	\def\centreblob{true}
+	\burst
+\end{scope}
+\def\basecolour{magenta}
+\def\secondcolour{red!40!white}
+\def\smoke{true}
+\def\bursttwo{false}
+\def\bursttwoanglemin{0}
+\def\bursttwoangletwo{60}
+\def\bursttwoanglemax{359}
+\def\bursttwowidth{2mm}
+\def\bursttwowidthrandom{1.5mm}
+\def\smokecolour{gray!50!magenta}
+\def\burstwidth{1.7cm}
+\def\anglemin{0}
+\def\angletwo{10}
+\def\anglemax{359}
+\def\endblob{true}
+\def\endblobwidth{2mm}
+\def\endblobcolour{magenta}
+\def\centreblob{false}
+\def\centreblobwidth{0.75cm}
+\def\centreblobcolour{magenta!50!white}
+\begin{scope}[xshift=-3cm, yshift=5cm]
+	\burst
+	\def\anglemin{5}
+	\def\angletwo{15}
+	\def\anglemax{359}
+	\def\smoke{false}
+	\def\centreblob{true}
+	\burst
+\end{scope}
+\def\basecolour{blue}
+\def\secondcolour{cyan}
+\def\smoke{true}
+\def\bursttwo{false}
+\def\bursttwoanglemin{0}
+\def\bursttwoangletwo{60}
+\def\bursttwoanglemax{359}
+\def\bursttwowidth{2mm}
+\def\bursttwowidthrandom{1.5mm}
+\def\smokecolour{gray!50!blue}
+\def\burstwidth{1.7cm}
+\def\anglemin{0}
+\def\angletwo{10}
+\def\anglemax{359}
+\def\endblob{true}
+\def\endblobwidth{2mm}
+\def\endblobcolour{cyan}
+\def\centreblob{false}
+\def\centreblobwidth{0.75cm}
+\def\centreblobcolour{blue!50!white}
+\begin{scope}[xshift=5cm, yshift=5cm]
+	\burst
+	\def\anglemin{5}
+	\def\angletwo{15}
+	\def\anglemax{359}
+	\def\smoke{false}
+	\def\centreblob{true}
+	\burst
+\end{scope}
+
+
+%roman candles. Each colour has up to 5 candles, from 2 start positions
+%reflections in water use 4 per colour
+%red
+\tikzset{romanstyle/.style={line width=0.5}}
+\tikzset{romansmokestyle/.style={draw=none}}
+\def\basecolour{red}
+\def\candleanglemin{80}
+\def\candleangletwo{82}
+\def\candleanglemax{100}
+\def\candleheight{2cm}
+\def\candleheightrandom{5mm}
+\def\smoke{true}
+\def\smokecolour{red}
+\def\cloudwidth{1.5cm}
+\def\cloudheight{0.6cm}
+\begin{scope}[xshift=-2.1cm,yshift=-2.8cm,opacity=0.5]
+	\candle
+	\flame
+\end{scope}
+\def\basecolour{yellow}
+\def\candleanglemin{86}
+\def\candleangletwo{88}
+\def\candleanglemax{96}
+\def\candleheight{1.5cm}
+\def\smoke{false}
+\def\cloudwidth{1.5cm}
+\def\cloudheight{0.6cm}
+\begin{scope}[xshift=-2.1cm,yshift=-2.8cm,opacity=0.3]
+	\candle
+\end{scope}
+%reflection
+\begin{scope}[xshift=-2.1cm, yshift=-3.8cm]
+	\def\candleheight{2cm}
+	\def\candleheightrandom{0cm}
+	\def\basecolour{red}
+	\def\candleanglemin{280}
+	\def\candleangletwo{278}
+	\def\candleanglemax{260}
+	\def\smoke{false}
+	\tikzset{romanstyle/.style={line width=0.5,decorate,opacity=0.3, decoration={snake,amplitude=.1mm+rand*0.05mm,segment length=2mm+rand*0.5mm}}}
+	\candle
+	\def\basecolour{yellow}
+	\def\candleanglemin{274}
+	\def\candleangletwo{276}
+	\def\candleanglemax{264}
+	\tikzset{romanstyle/.style={line width=0.5,decorate,opacity=0.2, decoration={snake,amplitude=.1mm+rand*0.05mm,segment length=2mm+rand*0.5mm}}}
+	\candle
+\end{scope}
+
+\def\basecolour{red}
+\def\candleanglemin{80}
+\def\candleangletwo{82}
+\def\candleanglemax{100}
+\def\candleheight{2cm}
+\def\smoke{true}
+\begin{scope}[xshift=-2cm,yshift=-3cm]
+	\candle
+	\flame
+\end{scope}
+
+\def\basecolour{yellow}
+\def\candleanglemin{86}
+\def\candleangletwo{88}
+\def\candleanglemax{96}
+\def\candleheight{1.5cm}
+\def\smoke{false}
+\def\cloudwidth{1.5cm}
+\def\cloudheight{0.6cm}
+\begin{scope}[xshift=-2cm,yshift=-3cm,opacity=0.5]
+	\candle
+\end{scope}
+
+\def\basecolour{yellow!50!white}
+\def\candleanglemin{88}
+\def\candleangletwo{90}
+\def\candleanglemax{94}
+\def\candleheight{1.2cm}
+\def\smoke{false}
+\def\cloudwidth{1.2cm}
+\def\cloudheight{0.6cm}
+\begin{scope}[xshift=-2cm,yshift=-3cm,opacity=0.9]
+	\candle
+\end{scope}
+\begin{scope}[xshift=-2cm, yshift=-3.6cm]
+	\def\candleheight{2cm}
+	\def\candleheightrandom{0cm}
+	\def\basecolour{red}
+	\def\candleanglemin{280}
+	\def\candleangletwo{278}
+	\def\candleanglemax{260}
+	\def\smoke{false}
+	\tikzset{romanstyle/.style={line width=0.5,decorate,opacity=0.3, decoration={snake,amplitude=.1mm+rand*0.05mm,segment length=2mm+rand*0.5mm}}}
+	\candle
+	\def\basecolour{yellow}
+	\def\candleanglemin{274}
+	\def\candleangletwo{276}
+	\def\candleanglemax{264}
+	\tikzset{romanstyle/.style={line width=0.5,decorate,opacity=0.2, decoration={snake,amplitude=.1mm+rand*0.05mm,segment length=2mm+rand*0.5mm}}}
+	\candle
+\end{scope}
+
+%green
+\def\candleanglemin{88}
+\def\candleangletwo{89}
+\def\candleanglemax{105}
+\def\basecolour{green!70!white}
+\def\smokecolour{green!50!black}
+\def\candleheight{2cm}
+\def\smoke{true}
+\begin{scope}[xshift=-.1cm,yshift=-2.8cm,opacity=0.5]
+	\candle
+	\flame
+\end{scope}
+
+\def\smoke{false}
+\def\candleanglemin{92}
+\def\candleangletwo{94}
+\def\candleanglemax{100}
+\def\basecolour{green!20!white}
+\begin{scope}[xshift=-.1cm,yshift=-2.8cm,opacity=0.3]
+	\candle
+\end{scope}
+\begin{scope}[xshift=-.1cm, yshift=-3.8cm]
+	\def\candleheight{2cm}
+	\def\candleheightrandom{0cm}
+	\def\basecolour{green}
+	\def\candleanglemin{272}
+	\def\candleangletwo{271}
+	\def\candleanglemax{255}
+	\def\smoke{false}
+	\tikzset{romanstyle/.style={line width=0.5,decorate,opacity=0.3, decoration={snake,amplitude=.1mm+rand*0.05mm,segment length=2mm+rand*0.5mm}}}
+	\candle
+	\def\basecolour{green!20!white}
+	\def\candleanglemin{268}
+	\def\candleangletwo{266}
+	\def\candleanglemax{260}
+	\tikzset{romanstyle/.style={line width=0.5,decorate,opacity=0.2, decoration={snake,amplitude=.1mm+rand*0.05mm,segment length=2mm+rand*0.5mm}}}
+	\candle
+\end{scope}
+\def\smoke{true}
+\def\candleanglemin{88}
+\def\candleangletwo{89}
+\def\candleanglemax{105}
+\def\basecolour{green!70!white}
+\def\candleheight{2cm}
+\begin{scope}[xshift=0cm,yshift=-3cm]
+	\candle
+	\flame
+\end{scope}
+
+\def\smoke{false}
+\def\candleanglemin{92}
+\def\candleangletwo{94}
+\def\candleanglemax{100}
+\def\basecolour{green!20!white}
+\def\candleheight{1.5cm}
+\begin{scope}[xshift=0cm,yshift=-3cm]
+	\candle
+\end{scope}
+\begin{scope}[xshift=0cm, yshift=-3.6cm]
+	\def\candleheight{2cm}
+	\def\candleheightrandom{0cm}
+	\def\basecolour{green}
+	\def\candleanglemin{272}
+	\def\candleangletwo{271}
+	\def\candleanglemax{255}
+	\def\smoke{false}
+	\tikzset{romanstyle/.style={line width=0.5,decorate,opacity=0.2, decoration={snake,amplitude=.1mm+rand*0.05mm,segment length=2mm+rand*0.5mm}}}
+	\candle
+	\def\basecolour{green!20!white}
+	\def\candleanglemin{268}
+	\def\candleangletwo{266}
+	\def\candleanglemax{260}
+	\tikzset{romanstyle/.style={line width=0.5,decorate,opacity=0.15, decoration={snake,amplitude=.1mm+rand*0.05mm,segment length=2mm+rand*0.5mm}}}
+	\candle
+\end{scope}
+%pink
+\def\candleanglemin{88}
+\def\candleangletwo{89}
+\def\candleanglemax{105}
+\def\basecolour{magenta!70!white}
+\def\smokecolour{magenta!50!black}
+\def\secondcolour{red!50!white}
+\def\candleheight{2cm}
+\def\smoke{true}
+\begin{scope}[xshift=1.9cm,yshift=-2.8cm,opacity=0.5]
+	\candle
+	\flame
+\end{scope}
+
+\def\smoke{false}
+\def\candleanglemin{92}
+\def\candleangletwo{94}
+\def\candleanglemax{100}
+\def\basecolour{magenta!20!white}
+\begin{scope}[xshift=1.9cm,yshift=-2.8cm,opacity=0.3]
+	\candle
+\end{scope}
+\begin{scope}[xshift=1.9cm, yshift=-3.8cm]
+	\def\candleheight{2cm}
+	\def\candleheightrandom{0cm}
+	\def\basecolour{magenta}
+	\def\candleanglemin{272}
+	\def\candleangletwo{271}
+	\def\candleanglemax{255}
+	\def\smoke{false}
+	\tikzset{romanstyle/.style={line width=0.5,decorate,opacity=0.2, decoration={snake,amplitude=.1mm+rand*0.05mm,segment length=2mm+rand*0.5mm}}}
+	\candle
+	\def\basecolour{magenta!70!white}
+	\def\candleanglemin{268}
+	\def\candleangletwo{266}
+	\def\candleanglemax{260}
+	\tikzset{romanstyle/.style={line width=0.5,decorate,opacity=0.15, decoration={snake,amplitude=.1mm+rand*0.05mm,segment length=2mm+rand*0.5mm}}}
+	\candle
+\end{scope}
+\def\smoke{true}
+\def\candleanglemin{80}
+\def\candleangletwo{81}
+\def\candleanglemax{100}
+\def\basecolour{magenta!70!white}
+\def\candleheight{2cm}
+\begin{scope}[xshift=2cm,yshift=-3cm]
+	\candle
+	\flame
+\end{scope}
+\def\smoke{false}
+
+\def\candleanglemin{92}
+\def\candleangletwo{94}
+\def\candleanglemax{100}
+\def\basecolour{magenta!20!white}
+\def\candleheight{1.5cm}
+\begin{scope}[xshift=2cm,yshift=-3cm]
+	\candle
+\end{scope}
+\begin{scope}[xshift=2cm, yshift=-3.6cm]
+	\def\candleheight{2cm}
+	\def\candleheightrandom{0cm}
+	\def\basecolour{magenta}
+	\def\candleanglemin{272}
+	\def\candleangletwo{271}
+	\def\candleanglemax{255}
+	\def\smoke{false}
+	\tikzset{romanstyle/.style={line width=0.5,decorate,opacity=0.2, decoration={snake,amplitude=.1mm+rand*0.05mm,segment length=2mm+rand*0.5mm}}}
+	\candle
+	\def\basecolour{magenta!70!white}
+	\def\candleanglemin{268}
+	\def\candleangletwo{266}
+	\def\candleanglemax{260}
+	\tikzset{romanstyle/.style={line width=0.5,decorate,opacity=0.15, decoration={snake,amplitude=.1mm+rand*0.05mm,segment length=2mm+rand*0.5mm}}}
+	\candle
+\end{scope}
+%blue
+\def\secondcolour{cyan}
+\def\candleanglemin{82}
+\def\candleangletwo{83}
+\def\candleanglemax{100}
+\def\basecolour{blue!70!cyan}
+\def\smokecolour{blue!50!black}
+\def\candleheight{2cm}
+\def\smoke{true}
+\begin{scope}[xshift=3.9cm,yshift=-2.8cm,opacity=0.5]
+	\candle
+	\flame
+\end{scope}
+
+\def\smoke{false}
+\def\candleanglemin{92}
+\def\candleangletwo{94}
+\def\candleanglemax{100}
+\def\basecolour{blue!20!cyan}
+\begin{scope}[xshift=3.9cm,yshift=-2.8cm,opacity=0.3]
+	\candle
+\end{scope}
+\begin{scope}[xshift=3.9cm, yshift=-3.8cm]
+	\def\candleheight{2cm}
+	\def\candleheightrandom{0cm}
+	\def\basecolour{blue}
+	\def\candleanglemin{272}
+	\def\candleangletwo{271}
+	\def\candleanglemax{255}
+	\def\smoke{false}
+	\tikzset{romanstyle/.style={line width=0.5,decorate,opacity=0.2, decoration={snake,amplitude=.1mm+rand*0.05mm,segment length=2mm+rand*0.5mm}}}
+	\candle
+	\def\basecolour{blue!20!cyan}
+	\def\candleanglemin{268}
+	\def\candleangletwo{266}
+	\def\candleanglemax{260}
+	\tikzset{romanstyle/.style={line width=0.5,decorate,opacity=0.15, decoration={snake,amplitude=.1mm+rand*0.05mm,segment length=2mm+rand*0.5mm}}}
+	\candle
+\end{scope}
+\def\smoke{true}
+\def\candleanglemin{88}
+\def\candleangletwo{89}
+\def\candleanglemax{105}
+\def\basecolour{blue!70!cyan}
+\def\candleheight{2cm}
+\begin{scope}[xshift=4cm,yshift=-3cm]
+	\candle
+\end{scope}
+
+\def\smoke{false}
+\def\candleanglemin{92}
+\def\candleangletwo{94}
+\def\candleanglemax{100}
+\def\basecolour{blue!20!cyan}
+\def\candleheight{1.5cm}
+\begin{scope}[xshift=4cm,yshift=-3cm]
+	\candle
+	\flame
+\end{scope}
+\begin{scope}[xshift=4cm, yshift=-3.6cm]
+	\def\candleheight{2cm}
+	\def\candleheightrandom{0cm}
+	\def\basecolour{blue}
+	\def\candleanglemin{272}
+	\def\candleangletwo{271}
+	\def\candleanglemax{255}
+	\def\smoke{false}
+	\tikzset{romanstyle/.style={line width=0.5,decorate,opacity=0.2, decoration={snake,amplitude=.1mm+rand*0.05mm,segment length=2mm+rand*0.5mm}}}
+	\candle
+	\def\basecolour{blue!20!cyan}
+	\def\candleanglemin{268}
+	\def\candleangletwo{266}
+	\def\candleanglemax{260}
+	\tikzset{romanstyle/.style={line width=0.5,decorate,opacity=0.15, decoration={snake,amplitude=.1mm+rand*0.05mm,segment length=2mm+rand*0.5mm}}}
+	\candle
+\end{scope}
+%yellow
+\def\candleanglemin{82}
+\def\candleangletwo{83}
+\def\candleanglemax{100}
+\def\basecolour{yellow}
+\def\secondcolour{red}
+\def\smokecolour{yellow!80!red}
+\def\cloudcolour{yellow!80!red}
+\def\candleheight{2cm}
+\def\smoke{true}
+\begin{scope}[xshift=5.9cm,yshift=-2.8cm,opacity=0.5]
+	\candle
+	\flame
+\end{scope}
+
+\def\smoke{false}
+\def\candleanglemin{92}
+\def\candleangletwo{94}
+\def\candleanglemax{100}
+\def\basecolour{yellow!80!red!20!white}
+\def\cloudcolour{yellow!80!red}
+\begin{scope}[xshift=5.9cm,yshift=-2.8cm,opacity=0.3]
+	\candle
+\end{scope}
+\begin{scope}[xshift=5.9cm, yshift=-3.8cm]
+	\def\candleheight{2cm}
+	\def\candleheightrandom{0cm}
+	\def\basecolour{yellow}
+	\def\candleanglemin{272}
+	\def\candleangletwo{271}
+	\def\candleanglemax{255}
+	\def\smoke{false}
+	\tikzset{romanstyle/.style={line width=0.5,decorate,opacity=0.2, decoration={snake,amplitude=.1mm+rand*0.05mm,segment length=2mm+rand*0.5mm}}}
+	\candle
+	\def\basecolour{yellow!80!red}
+	\def\candleanglemin{268}
+	\def\candleangletwo{266}
+	\def\candleanglemax{260}
+	\tikzset{romanstyle/.style={line width=0.5,decorate,opacity=0.15, decoration={snake,amplitude=.1mm+rand*0.05mm,segment length=2mm+rand*0.5mm}}}
+	\candle
+\end{scope}
+\def\smoke{true}
+\def\candleanglemin{88}
+\def\candleangletwo{89}
+\def\candleanglemax{105}
+\def\basecolour{yellow!80!red}
+\def\candleheight{2cm}
+\begin{scope}[xshift=6cm,yshift=-3cm]
+	\candle
+	\flame
+\end{scope}
+
+\def\smoke{false}
+\def\candleanglemin{92}
+\def\candleangletwo{94}
+\def\candleanglemax{98}
+\def\basecolour{yellow!80!red!20!white}
+\def\candleheight{1.5cm}
+\begin{scope}[xshift=6cm,yshift=-3cm]
+	\candle
+\end{scope}
+\begin{scope}[xshift=6cm, yshift=-3.6cm]
+	\def\candleheight{2cm}
+	\def\candleheightrandom{0cm}
+	\def\basecolour{yellow}
+	\def\candleanglemin{272}
+	\def\candleangletwo{271}
+	\def\candleanglemax{255}
+	\def\smoke{false}
+	\tikzset{romanstyle/.style={line width=0.5,decorate,opacity=0.2, decoration={snake,amplitude=.3mm+rand*0.1mm,segment length=2mm+rand*0.5mm}}}
+	\candle
+	\def\basecolour{yellow!80!red}
+	\def\candleanglemin{268}
+	\def\candleangletwo{266}
+	\def\candleanglemax{260}
+	\tikzset{romanstyle/.style={line width=0.5,decorate,opacity=0.15, decoration={snake,amplitude=.3mm+rand*0.1mm,segment length=2mm+rand*0.5mm}}}
+	\candle
+\end{scope}
+
+%rocket/mortar bursts (3 per colour)
+%red
+\def\basecolour{red!80!yellow}
+\def\secondcolour{yellow!80!white}
+\def\smoke{true}
+\def\bursttwo{false}
+\def\bursttwoanglemin{0}
+\def\bursttwoangletwo{60}
+\def\bursttwoanglemax{359}
+\def\smokecolour{red}
+\def\burstwidth{1.2cm}
+\def\anglemin{0}
+\def\anglemax{359}
+\def\angletwo{10}
+\def\endblob{false}
+\def\endblobwidth{2mm}
+\def\endblobcolour{red}
+\def\centreblob{true}
+\def\centreblobwidth{0.5cm}
+\def\centreblobcolour{yellow}
+\begin{scope}[xshift=-2cm, yshift=1cm,opacity=0.6]
+	\burst
+\end{scope}
+\begin{scope}[xshift=-1.8cm,yshift=1.2cm,opacity=0.3]
+	\burst
+\end{scope}
+
+\def\smoke{true}
+\def\smokecolour{red}
+\def\burstwidth{1.3cm}
+\def\anglemin{0}
+\def\anglemax{359}
+\def\angletwo{10}
+\def\centreblob{true}
+\def\centreblobwidth{0.5cm}
+\def\centreblobcolour{yellow}
+\begin{scope}[xshift=-2.3cm, yshift=1.3cm]
+	\burst
+\end{scope}
+%green
+\def\basecolour{green}
+\def\secondcolour{cyan!50!white}
+\def\smoke{true}
+\def\bursttwo{false}
+\def\bursttwoanglemin{0}
+\def\bursttwoangletwo{60}
+\def\bursttwoanglemax{359}
+\def\smokecolour{green!80!black}
+\def\burstwidth{1.2cm}
+\def\anglemin{0}
+\def\anglemax{359}
+\def\angletwo{10}
+\def\endblob{false}
+\def\endblobwidth{2mm}
+\def\endblobcolour{green}
+\def\centreblob{true}
+\def\centreblobwidth{0.5cm}
+\def\centreblobcolour{green!80!white}
+\begin{scope}[xshift=0, yshift=1cm,opacity=0.6]
+	\burst
+\end{scope}
+\begin{scope}[xshift=.2cm,yshift=1.2cm,opacity=0.3]
+	\burst
+\end{scope}
+
+\def\smoke{true}
+\def\smokecolour{green!80!black}
+\def\burstwidth{1.3cm}
+\def\anglemin{0}
+\def\anglemax{359}
+\def\angletwo{10}
+\def\centreblob{true}
+\def\centreblobwidth{0.5cm}
+\def\centreblobcolour{green!80!white}
+\begin{scope}[xshift=-0.3cm, yshift=1.3cm]
+	\burst
+\end{scope}
+%pink
+\def\basecolour{magenta}
+\def\secondcolour{magenta!20!white}
+\def\smoke{true}
+\def\bursttwo{false}
+\def\bursttwoanglemin{0}
+\def\bursttwoangletwo{60}
+\def\bursttwoanglemax{359}
+\def\smokecolour{magenta!80!black}
+\def\burstwidth{1.2cm}
+\def\anglemin{0}
+\def\anglemax{359}
+\def\angletwo{10}
+\def\endblob{false}
+\def\endblobwidth{2mm}
+\def\endblobcolour{magenta}
+\def\centreblob{true}
+\def\centreblobwidth{0.5cm}
+\def\centreblobcolour{magenta!80!white}
+\begin{scope}[xshift=2cm, yshift=1cm,opacity=0.6]
+	\burst
+\end{scope}
+\def\burstwidth{1cm}
+\begin{scope}[xshift=2.2cm,yshift=1.2cm,opacity=0.3]
+	\burst
+\end{scope}
+
+\def\smoke{true}
+\def\smokecolour{magenta!80!black}
+\def\burstwidth{1.3cm}
+\def\anglemin{0}
+\def\anglemax{359}
+\def\angletwo{10}
+\def\centreblob{true}
+\def\centreblobwidth{0.5cm}
+\def\centreblobcolour{magenta!80!white}
+\begin{scope}[xshift=1.7cm, yshift=0.9cm]
+	\burst
+\end{scope}
+%blue
+\def\basecolour{blue}
+\def\secondcolour{cyan!80!white}
+\def\smoke{true}
+\def\bursttwo{false}
+\def\bursttwoanglemin{0}
+\def\bursttwoangletwo{60}
+\def\bursttwoanglemax{359}
+\def\smokecolour{blue!80!black}
+\def\burstwidth{1.2cm}
+\def\anglemin{0}
+\def\anglemax{359}
+\def\angletwo{10}
+\def\endblob{false}
+\def\endblobwidth{2mm}
+\def\endblobcolour{blue!80!cyan}
+\def\centreblob{true}
+\def\centreblobwidth{0.5cm}
+\def\centreblobcolour{blue!20!white}
+\begin{scope}[xshift=4cm, yshift=1cm,opacity=0.6]
+	\burst
+\end{scope}
+\def\burstwidth{1cm}
+\begin{scope}[xshift=4.2cm,yshift=1.4cm,opacity=0.3]
+	\burst
+\end{scope}
+
+\def\smoke{true}
+\def\smokecolour{blue!80!black}
+\def\burstwidth{1.3cm}
+\def\anglemin{0}
+\def\anglemax{359}
+\def\angletwo{10}
+\def\centreblob{true}
+\def\centreblobwidth{0.5cm}
+\def\centreblobcolour{blue!80!white}
+\begin{scope}[xshift=3.8cm, yshift=0.9cm]
+	\burst
+\end{scope}
+%yellow
+\def\basecolour{yellow!80!red}
+\def\secondcolour{yellow!50!red}
+\def\smoke{true}
+\def\bursttwo{false}
+\def\bursttwoanglemin{0}
+\def\bursttwoangletwo{60}
+\def\bursttwoanglemax{359}
+\def\smokecolour{yellow!80!black}
+\def\burstwidth{1.2cm}
+\def\anglemin{0}
+\def\anglemax{359}
+\def\angletwo{10}
+\def\endblob{false}
+\def\endblobwidth{2mm}
+\def\endblobcolour{yellow}
+\def\centreblob{true}
+\def\centreblobwidth{0.5cm}
+\def\centreblobcolour{yellow!80!white}
+\begin{scope}[xshift=6cm, yshift=1.3cm,opacity=0.6]
+	\burst
+\end{scope}
+\def\burstwidth{1.5cm}
+\begin{scope}[xshift=6.1cm,yshift=1.2cm,opacity=0.3]
+	\burst
+\end{scope}
+
+\def\smoke{true}
+\def\smokecolour{yellow!80!black}
+\def\burstwidth{1.3cm}
+\def\anglemin{0}
+\def\anglemax{359}
+\def\angletwo{10}
+\def\centreblob{true}
+\def\centreblobwidth{0.5cm}
+\def\centreblobcolour{yellow!80!white}
+\begin{scope}[xshift=5.7cm, yshift=0.9cm]
+	\burst
+\end{scope}
+\def\cloudcolour{red}
+\begin{scope}[xshift=-3.3cm, yshift=-1cm]
+	\cloud
+\end{scope}
+\def\cloudcolour{green}
+\begin{scope}[xshift=-1.4cm, yshift=-1.2cm]
+	\cloud
+\end{scope}
+\def\cloudcolour{magenta}
+\begin{scope}[xshift=.75cm, yshift=-.9cm]
+	\cloud
+\end{scope}
+\def\cloudcolour{blue}
+\begin{scope}[xshift=2.5cm, yshift=-1cm]
+	\cloud
+\end{scope}
+\def\cloudcolour{yellow}
+\begin{scope}[xshift=4.9cm, yshift=-1.1cm]
+	\cloud
+\end{scope}
+
+\fill[black, opacity=0.6] (-6,-5) rectangle (9,-3.4);
+\end{tikzpicture}
+\end{document}  
